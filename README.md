@@ -121,7 +121,7 @@ Utility class for creating multiple H5Iterator instances over dataset partitions
 ```cpp
 H5Partitioner(const std::string& fname,
              size_t num_partitions,
-             size_t buf_cap,
+             size_t buf_cap = DEFAULT_BUF_CAP,
              const std::string& x_group = "/X");
 ```
 
@@ -158,44 +158,20 @@ int main() {
 
 int main() {
     const std::string filename = "large_dataset.h5ad";
-    const size_t num_threads = 4;
-    const size_t buf_cap = 16 * 1024 * 1024;  // 16MB buffer capacity for streaming
     
-    // Create partitioner to divide dataset across multiple iterators
-    h5iter::H5Partitioner partitioner(filename, num_threads, buf_cap);
-    
-    std::cout << "Processing " << partitioner.rows() << " total rows using " 
-              << num_threads << " parallel threads\n";
+    h5iter::H5Partitioner partitioner(filename, 200);
 
-    // Process partitions in parallel using OpenMP
-    #pragma omp parallel num_threads(num_threads)
+    #pragma omp parallel for
+    for (int i = 0; i < partitioner.size(); ++i) {
     {
-        int thread_id = omp_get_thread_num();
-        size_t local_row_count = 0;
-        double local_sum = 0.0;
-        
-        // Each thread processes its own partition
-        for (auto row : partitioner[thread_id].rows_threadsafe()) {
-            local_row_count++;
-            
-            // Example: sum all non-zero values in this partition
+        for (auto row : partitioner[i].rows_threadsafe()) {
+            int64_t row_id = row.i;                 // row_id
             for (size_t k = 0; k < row.l; ++k) {
-                local_sum += row.data[k];
+                int64_t col_id = row.indices[k];    // col_id
+                float val = row.data[k];            // value
             }
-            
-            if (local_row_count % 10000 == 0) {
-                std::cout << "Thread " << thread_id << " processed " 
-                         << local_row_count << " rows\n";
-            }
-        }
-        
-        #pragma omp critical
-        {
-            std::cout << "Thread " << thread_id << " completed: " 
-                     << local_row_count << " rows, sum = " << local_sum << "\n";
         }
     }
-    
     return 0;
 }
 ```

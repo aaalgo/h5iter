@@ -111,7 +111,6 @@ struct H5IteratorParams {
   size_t num_rows_;
   size_t dataset_rows_; // total number of rows in the dataset
   size_t max_cols_;
-  size_t batch_size_;
   std::string x_group_;
   size_t data_chunk_size_;
   size_t index_chunk_size_;
@@ -122,7 +121,7 @@ struct H5IteratorParams {
   // Initialize the parameters from another H5IteratorParams object
   // The intended slice must be contained within the reference slice
   H5IteratorParams (const H5IteratorParams& other, size_t begin_row, size_t num_rows)
-  : fname_(other.fname_), begin_row_(begin_row), num_rows_(num_rows), dataset_rows_(other.dataset_rows_), max_cols_(other.max_cols_), batch_size_(other.batch_size_), x_group_(other.x_group_), data_chunk_size_(other.data_chunk_size_), index_chunk_size_(other.index_chunk_size_), buf_cap_(other.buf_cap_) {
+  : fname_(other.fname_), begin_row_(begin_row), num_rows_(num_rows), dataset_rows_(other.dataset_rows_), max_cols_(other.max_cols_), x_group_(other.x_group_), data_chunk_size_(other.data_chunk_size_), index_chunk_size_(other.index_chunk_size_), buf_cap_(other.buf_cap_) {
     if (!((begin_row >= other.begin_row_) && (begin_row + num_rows <= other.begin_row_ + other.num_rows_))) {
       throw std::runtime_error("Slices not contained within reference slice.");
     }
@@ -133,7 +132,6 @@ struct H5IteratorParams {
   : fname_(fname), begin_row_(begin_row), num_rows_(num_rows), buf_cap_(buf_cap), x_group_(x_group)
   {
     //std::cout << "H5Iterator: Initializing with file '" << fname << "'\n";
-    //std::cout << "H5Iterator: Parameters - begin_row=" << begin_row << ", num_rows=" << num_rows << ", max_cols=" << max_cols << ", batch_size=" << batch_size << ", x_group='" << x_group << "'\n";
     
     hid_t file = H5Fopen(fname.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
     if (file < 0) throw std::runtime_error("Failed to open file");
@@ -443,8 +441,8 @@ public:
 
 class H5Partitioner {
 public:
-  H5Partitioner(const std::string& fname, size_t num_partitions, size_t batch_size, const std::string& x_group="/X")
-  : params_(fname, 0, 0, batch_size, x_group)
+  H5Partitioner(const std::string& fname, size_t num_partitions, size_t buf_cap = DEFAULT_BUF_CAP, const std::string& x_group="/X")
+  : params_(fname, 0, 0, buf_cap, x_group)
   {
     if (params_.num_rows_ != params_.dataset_rows_) {
       throw std::runtime_error("Dataset size does not match the number of partitions");
