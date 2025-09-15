@@ -2,7 +2,7 @@ CXX      := g++
 CXXFLAGS := -std=c++20 -O3 -Wall -Wextra -fopenmp -I/usr/include/hdf5/serial -I3rd/xtensor/include -I3rd/xtl/include -I3rd/xsimd/include -I3rd/CLI11/include -I3rd/json/single_include
 LDFLAGS  := -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5 -lz -lm -fopenmp -lpthread
 
-TARGETS  := h5extract bench
+TARGETS  := h5extract bench h5transpose
 HEADER   := h5iter.hpp
 
 all: $(TARGETS)
@@ -11,6 +11,9 @@ h5extract: h5extract.cpp $(HEADER)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
 bench: bench.cpp $(HEADER)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+h5transpose: h5transpose.cpp $(HEADER)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
 # Run target requires an H5 file argument

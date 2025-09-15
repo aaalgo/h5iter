@@ -459,6 +459,11 @@ public:
       return params_.dataset_rows_;
   }
 
+  size_t cols () const {
+      return params_.max_cols_;
+  }
+
+
   ~H5Partitioner() {
   }
 
