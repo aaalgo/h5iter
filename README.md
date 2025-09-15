@@ -1,4 +1,4 @@
-# H5Iterator
+# H5Iter
 
 **Coroutine-based row streaming for CSR matrices in HDF5 (.h5ad)**
 
@@ -28,16 +28,19 @@ This is the standard CSR (Compressed Sparse Row) encoding used by AnnData.
 ## Buffering Strategy
 
 When iterating:
-1. A buffer of size (max_cols + batch_size * chunk_size) is allocated.
+1. A buffer of size `buf_cap` is allocated, with minimum size calculated as:
+   `max_cols + max(data_chunk_size, index_chunk_size) * 2`
    - `max_cols` is the maximum number of columns (upper bound on row length).
-   - `chunk_size` is the effective HDF5 chunk length (max of data/index chunks).
-   - `batch_size` is the number of chunks read per iteration.
-2. On each step, up to `batch_size * chunk_size` elements are read from disk.
-3. Special handling for the first batch to align with chunk boundaries.
+   - `data_chunk_size` is the HDF5 chunk size for the data array (/X/data).
+   - `index_chunk_size` is the HDF5 chunk size for the index array (/X/indices).
+2. Indices and data are read independently with their respective chunk sizes:
+   - Index reads are aligned to `index_chunk_size` boundaries.
+   - Data reads are aligned to `data_chunk_size` boundaries.
+3. Special handling for the first batch to align with chunk boundaries for both arrays.
 4. All rows fully contained in the buffer are yielded immediately.
 5. Remaining buffer data is moved to the front before the next batch read.
 
-This ensures each HDF5 chunk is decompressed only once and rows are always yielded in full.
+This ensures each HDF5 chunk is decompressed only once for both arrays and rows are always yielded in full, even when data and index arrays have different chunk sizes.
 
 ## Thread Safety and Parallelism
 
@@ -91,14 +94,14 @@ This design enables true parallelism when using multiple H5Iterator instances si
 H5Iterator(const std::string& fname,
            size_t begin_row,
            size_t num_rows,
-           size_t batch_size,
+           size_t buf_cap,
            const std::string& x_group = "/X");
 ```
 
 - `fname`: path to .h5ad file
 - `begin_row`: starting row index (0-based)
 - `num_rows`: number of rows to process (0 = all remaining)
-- `batch_size`: buffer capacity in elements for streaming (internally renamed from buf_cap)
+- `buf_cap`: buffer capacity in elements for streaming
 - `x_group`: path of CSR group (default "/X")
 
 **Methods:**
@@ -124,7 +127,7 @@ Utility class for creating multiple H5Iterator instances over dataset partitions
 ```cpp
 H5Partitioner(const std::string& fname,
              size_t num_partitions,
-             size_t batch_size,
+             size_t buf_cap,
              const std::string& x_group = "/X");
 ```
 
@@ -142,7 +145,8 @@ H5Partitioner(const std::string& fname,
 
 int main() {
     // Process rows 1000-2999 (2000 rows) from a dataset
-    h5iter::H5Iterator it("bigdata.h5ad", 1000, 2000, 16);
+    // Buffer capacity of 16MB (16 * 1024 * 1024 elements)
+    h5iter::H5Iterator it("bigdata.h5ad", 1000, 2000, 16 * 1024 * 1024);
 
     for (auto row : it.rows_threadsafe()) {
         std::cout << "Row " << row.i << " nnz=" << row.l << "\n";
@@ -161,10 +165,10 @@ int main() {
 int main() {
     const std::string filename = "large_dataset.h5ad";
     const size_t num_threads = 4;
-    const size_t batch_size = 16;  // batch size for streaming
+    const size_t buf_cap = 16 * 1024 * 1024;  // 16MB buffer capacity for streaming
     
     // Create partitioner to divide dataset across multiple iterators
-    h5iter::H5Partitioner partitioner(filename, num_threads, batch_size);
+    h5iter::H5Partitioner partitioner(filename, num_threads, buf_cap);
     
     std::cout << "Processing " << partitioner.rows() << " total rows using " 
               << num_threads << " parallel threads\n";
@@ -276,7 +280,7 @@ Performs comprehensive analysis and benchmarking of HDF5 datasets.
 - This library only supports CSR layout (not CSC).
 - Only the requested slice of `indptr` array is loaded into memory.
 - Designed for read-only row streaming, not writing.
-- Handles mismatched chunk sizes between data and index arrays.
+- **Handles mismatched chunk sizes**: Data and index arrays can have different HDF5 chunk sizes - the library automatically detects and respects both `data_chunk_size` and `index_chunk_size` for optimal I/O performance.
 - Requires a C++20 compiler and HDF5 C library (libhdf5).
 - Each H5Iterator instance creates its own child process for I/O operations.
 - When using H5Partitioner, each partition runs in its own process, enabling true parallel HDF5 access.
