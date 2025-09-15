@@ -68,13 +68,6 @@ This library implements a fork-based approach to achieve parallelism while worki
 - Parent process coordinates read requests; child process performs actual I/O
 - Semaphores synchronize read requests and completion notifications
 
-### Performance Benefits
-
-- Child process can read large chunks from disk while parent processes previous data
-- No HDF5 mutex contention between different H5Iterator instances
-- Each iterator has its own dedicated I/O process
-- Memory copying is minimized through shared memory design
-
 ### Process Lifecycle
 
 - Child process is forked during iterator construction
@@ -94,14 +87,15 @@ This design enables true parallelism when using multiple H5Iterator instances si
 H5Iterator(const std::string& fname,
            size_t begin_row,
            size_t num_rows,
-           size_t buf_cap,
+           size_t buf_cap = DEFAULT_BUF_CAP,
            const std::string& x_group = "/X");
 ```
 
 - `fname`: path to .h5ad file
 - `begin_row`: starting row index (0-based)
 - `num_rows`: number of rows to process (0 = all remaining)
-- `buf_cap`: buffer capacity in elements for streaming
+- `buf_cap`: buffer capacity in elements for streaming (usually
+  millions)
 - `x_group`: path of CSR group (default "/X")
 
 **Methods:**

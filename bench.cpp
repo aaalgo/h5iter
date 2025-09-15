@@ -6,7 +6,7 @@
 #include <cmath>
 #include <limits>
 #include <iomanip>
-#include "h5iterator.hpp"
+#include "h5iter.hpp"
 
 int main(int argc, char *argv[]) {
   if (argc < 2) {

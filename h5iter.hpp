@@ -129,7 +129,7 @@ struct H5IteratorParams {
     indptr_ = other.indptr_ + (begin_row - other.begin_row_);
   }
 
-  H5IteratorParams (const std::string& fname, size_t begin_row, size_t num_rows, size_t buf_cap, const std::string& x_group="/X")
+  H5IteratorParams (const std::string& fname, size_t begin_row, size_t num_rows, size_t buf_cap = DEFAULT_BUF_CAP, const std::string& x_group="/X")
   : fname_(fname), begin_row_(begin_row), num_rows_(num_rows), buf_cap_(buf_cap), x_group_(x_group)
   {
     //std::cout << "H5Iterator: Initializing with file '" << fname << "'\n";
@@ -224,8 +224,8 @@ public:
     const int64_t* indices;
   };
 
-  H5Iterator(const std::string& fname, size_t begin_row, size_t num_rows, size_t batch_size, const std::string& x_group="/X")
-  : H5IteratorParams(fname, begin_row, num_rows, batch_size, x_group)
+  H5Iterator(const std::string& fname, size_t begin_row, size_t num_rows, size_t buf_cap = DEFAULT_BUF_CAP, const std::string& x_group="/X")
+  : H5IteratorParams(fname, begin_row, num_rows, buf_cap, x_group)
   {
 
   }
